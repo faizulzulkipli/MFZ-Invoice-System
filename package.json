@@ -1,0 +1,16 @@
+{
+  "name": "mfz-invoice-system",
+  "version": "1.0.0",
+  "description": "MFZ Invoice System connected with Supabase & Render",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.11.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

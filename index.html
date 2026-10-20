@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MFZ Invoice System - Sistem Invois & Perakaunan</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- html2pdf.js CDN for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        bukku: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            600: '#026aa7',
+                            700: '#035388',
+                            800: '#073b61',
+                            900: '#0a2540',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        [v-cloak] { display: none; }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; color: black; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased">
+    <div id="app" v-cloak class="min-h-screen flex flex-col md:flex-row">
+        
+        <!-- Toast Notifications -->
+        <div class="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm">
+            <div v-for="toast in toasts" :key="toast.id" 
+                 :class="toast.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'" 
+                 class="text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 transition-all transform duration-300">
+                <i :data-lucide="toast.type === 'success' ? 'check-circle' : 'alert-circle'" class="w-5 h-5 flex-shrink-0"></i>
+                <span class="text-sm font-medium">{{ toast.message }}</span>
+            </div>
+        </div>
+
+        <!-- Sidebar / Navigation -->
+        <aside class="w-full md:w-64 bg-bukku-900 text-white flex-shrink-0 no-print flex flex-col justify-between">
+            <div>
+                <!-- Brand Header -->
+                <div class="p-5 flex items-center justify-between border-b border-slate-700/60">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xl shadow-md">
+                            MFZ
+                        </div>
+                        <div>
+                            <h1 class="font-bold text-base tracking-wide leading-tight text-white">MFZ Invoice</h1>
+                            <p class="text-xs text-sky-300">Sistem Pengurusan</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nav Links -->
+                <nav class="p-4 space-y-1.5">
+                    <button @click="currentTab = 'dashboard'" 
+                        :class="currentTab === 'dashboard' ? 'bg-bukku-700 text-white font-semibold' : 'text-slate-300 hover:bg-bukku-800 hover:text-white'"
+                        class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors duration-150">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                        <span>Papan Pemuka</span>
+                    </button>
+
+                    <button @click="currentTab = 'quotations'" 
+                        :class="currentTab === 'quotations' ? 'bg-bukku-700 text-white font-semibold' : 'text-slate-300 hover:bg-bukku-800 hover:text-white'"
+                        class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors duration-150">
+                        <i data-lucide="file-text" class="w-4 h-4"></i>
+                        <span>Sebut Harga (Quotation)</span>
+                    </button>
+
+                    <button @click="currentTab = 'invoices'" 
+                        :class="currentTab === 'invoices' ? 'bg-bukku-700 text-white font-semibold' : 'text-slate-300 hover:bg-bukku-800 hover:text-white'"
+                        class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors duration-150">
+                        <i data-lucide="receipt" class="w-4 h-4"></i>
+                        <span>Invois (Invoices)</span>
+                    </button>
+
+                    <button @click="currentTab = 'inventory'" 
+                        :class="currentTab === 'inventory' ? 'bg-bukku-700 text-white font-semibold' : 'text-slate-300 hover:bg-bukku-800 hover:text-white'"
+                        class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors duration-150">
+                        <i data-lucide="package" class="w-4 h-4"></i>
+                        <span>Inventori & Stok</span>
+                    </button>
+
+                    <button @click="currentTab = 'customers'" 
+                        :class="currentTab === 'customers' ? 'bg-bukku-700 text-white font-semibold' : 'text-slate-300 hover:bg-bukku-800 hover:text-white'"
+                        class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors duration-150">
+                        <i data-lucide="users" class="w-4 h-4"></i>
+                        <span>Pelanggan</span>
+                    </button>
+
+                    <button @click="currentTab = 'reports'" 
+                        :class="currentTab === 'reports' ? 'bg-bukku-700 text-white font-semibold' : 'text-slate-300 hover:bg-bukku-800 hover:text-white'"
+                        class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors duration-150">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                        <span>Laporan Data</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- System Info Footer -->
+            <div class="p-4 border-t border-slate-700/60 text-xs text-slate-400">
+                <div class="flex items-center justify-between">
+                    <span>Versi Sistem: v2.4</span>
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+                </div>
+                <p class="mt-1 text-[11px] text-slate-500">Mata Wang: MYR (RM)</p>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+            
+            <!-- Top Navbar -->
+            <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between no-print shadow-sm">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-xl font-bold text-slate-800 capitalize">
+                        {{ getTabTitle(currentTab) }}
+                    </h2>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button @click="openQuickInvoiceModal" class="bg-bukku-600 hover:bg-bukku-700 text-white text-xs md:text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>Bina Invois Baru</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Page Body -->
+            <div class="p-6 space-y-6 flex-1">
+
+                <!-- 1. DASHBOARD MODULE -->
+                <section v-if="currentTab === 'dashboard'" class="space-y-6">
+                    <!-- KPI Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Jumlah Jualan (Paid)</p>
+                                    <h3 class="text-2xl font-bold text-slate-800 mt-1">RM {{ formatPrice(stats.totalPaid) }}</h3>
+                                </div>
+                                <div class="p-2.5 bg-emerald-50 rounded-lg text-emerald-600">
+                                    <i data-lucide="trending-up" class="w-5 h-5"></i>
+                                </div>
+                            </div>
+                            <p class="text-xs text-emerald-600 mt-3 font-medium flex items-center gap-1">
+                                <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+                                <span>Dari {{ stats.paidCount }} Invois Selesai</span>
+                            </p>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tunggakan (Pending)</p>
+                                    <h3 class="text-2xl font-bold text-amber-600 mt-1">RM {{ formatPrice(stats.totalPending) }}</h3>
+                                </div>
+                                <div class="p-2.5 bg-amber-50 rounded-lg text-amber-600">
+                                    <i data-lucide="clock" class="w-5 h-5"></i>
+                                </div>
+                            </div>
+                            <p class="text-xs text-amber-600 mt-3 font-medium flex items-center gap-1">
+                                <span>{{ stats.pendingCount }} Invois Belum Dijelaskan</span>
+                            </p>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Jumlah Pelanggan</p>
+                                    <h3 class="text-2xl font-bold text-slate-800 mt-1">{{ customers.length }}</h3>
+                                </div>
+                                <div class="p-2.5 bg-sky-50 rounded-lg text-sky-600">
+                                    <i data-lucide="users" class="w-5 h-5"></i>
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-3">Pelanggan berdaftar</p>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Amaran Stok Rendah</p>
+                                    <h3 class="text-2xl font-bold text-rose-600 mt-1">{{ stats.lowStockCount }}</h3>
+                                </div>
+                                <div class="p-2.5 bg-rose-50 rounded-lg text-rose-600">
+                                    <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                                </div>
+                            </div>
+                            <p class="text-xs text-rose-600 mt-3 font-medium">Perlu penambahan stok</p>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions & Recent Table -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Recent Invoices List -->
+                        <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-bold text-slate-800 text-base">Invois Terkini</h3>
+                                <button @click="currentTab = 'invoices'" class="text-xs font-medium text-bukku-600 hover:text-bukku-700 hover:underline">
+                                    Lihat Semua →
+                                </button>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-sm border-collapse">
+                                    <thead>
+                                        <tr class="text-xs text-slate-400 border-b border-slate-100 uppercase tracking-wider">
+                                            <th class="py-2.5 px-3">No Invois</th>
+                                            <th class="py-2.5 px-3">Pelanggan</th>
+                                            <th class="py-2.5 px-3">Jumlah</th>
+                                            <th class="py-2.5 px-3">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        <tr v-for="inv in recentInvoices" :key="inv.id" class="hover:bg-slate-50">
+                                            <td class="py-3 px-3 font-semibold text-bukku-600">{{ inv.number }}</td>
+                                            <td class="py-3 px-3 text-slate-700">{{ getCustomerName(inv.customerId) }}</td>
+                                            <td class="py-3 px-3 font-medium">RM {{ formatPrice(inv.grandTotal) }}</td>
+                                            <td class="py-3 px-3">
+                                                <span :class="getStatusBadgeClass(inv.status)" class="px-2.5 py-1 rounded-full text-xs font-semibold">
+                                                    {{ inv.status }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Inventory Quick Alert -->
+                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-base mb-3 flex items-center gap-2">
+                                    <i data-lucide="package-search" class="w-5 h-5 text-amber-500"></i>
+                                    <span>Amaran Stok Rendah</span>
+                                </h3>
+                                <div class="space-y-3">
+                                    <div v-for="item in lowStockItems" :key="item.id" class="p-3 bg-slate-50 rounded-lg flex items-center justify-between border border-slate-100">
+                                        <div>
+                                            <p class="font-medium text-slate-800 text-sm">{{ item.name }}</p>
+                                            <p class="text-xs text-slate-400">SKU: {{ item.sku }}</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-xs font-bold text-rose-600 block">{{ item.stock }} Unit Left</span>
+                                            <span class="text-[10px] text-slate-400">Min: {{ item.reorderLevel }}</span>
+                                        </div>
+                                    </div>
+                                    <div v-if="lowStockItems.length === 0" class="text-center py-6 text-slate-400 text-xs">
+                                        Semua stok barangan mencukupi.
+                                    </div>
+                                </div>
+                            </div>
+                            <button @click="currentTab = 'inventory'" class="mt-4 w-full text-center text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 py-2 rounded-lg transition">
+                                Urus Stok Barangan
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. INVOICES MODULE -->
+                <section v-if="currentTab === 'invoices'" class="space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="relative flex-1 w-full sm:w-auto">
+                            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
+                            <input v-model="searchInvoice" type="text" placeholder="Cari invois mengikut no / pelanggan..." class="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-bukku-500">
+                        </div>
+                        <div class="flex items-center gap-3 w-full sm:w-auto">
+                            <select v-model="invoiceFilterStatus" class="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-bukku-500 bg-white">
+                                <option value="ALL">Semua Status</option>
+                                <option value="Paid">Paid</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Draft">Draft</option>
+                            </select>
+                            <button @click="openInvoiceModal()" class="bg-bukku-600 hover:bg-bukku-700 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2 transition flex-shrink-0">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                <span>Tambah Invois</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Invoices Table -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm border-collapse">
+                                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200 uppercase">
+                                    <tr>
+                                        <th class="py-3.5 px-4">No. Invois</th>
+                                        <th class="py-3.5 px-4">Pelanggan</th>
+                                        <th class="py-3.5 px-4">Tarikh</th>
+                                        <th class="py-3.5 px-4">Tarikh Luput</th>
+                                        <th class="py-3.5 px-4">Jumlah (RM)</th>
+                                        <th class="py-3.5 px-4">Status</th>
+                                        <th class="py-3.5 px-4 text-right">Tindakan</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <tr v-for="inv in filteredInvoices" :key="inv.id" class="hover:bg-slate-50/80 transition">
+                                        <td class="py-3.5 px-4 font-bold text-bukku-600">{{ inv.number }}</td>
+                                        <td class="py-3.5 px-4 font-medium text-slate-800">{{ getCustomerName(inv.customerId) }}</td>
+                                        <td class="py-3.5 px-4 text-slate-500">{{ inv.date }}</td>
+                                        <td class="py-3.5 px-4 text-slate-500">{{ inv.dueDate }}</td>
+                                        <td class="py-3.5 px-4 font-bold text-slate-800">RM {{ formatPrice(inv.grandTotal) }}</td>
+                                        <td class="py-3.5 px-4">
+                                            <span :class="getStatusBadgeClass(inv.status)" class="px-2.5 py-1 rounded-full text-xs font-semibold">
+                                                {{ inv.status }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3.5 px-4 text-right">
+                                            <div class="flex items-center justify-end gap-1.5">
+                                                <button @click="viewPDF(inv, 'INVOICE')" class="p-1.5 hover:bg-slate-100 text-slate-600 rounded-md" title="Cetak / Muat Turun PDF">
+                                                    <i data-lucide="printer" class="w-4 h-4"></i>
+                                                </button>
+                                                <button @click="openInvoiceModal(inv)" class="p-1.5 hover:bg-slate-100 text-amber-600 rounded-md" title="Edit">
+                                                    <i data-lucide="edit" class="w-4 h-4"></i>
+                                                </button>
+                                                <button @click="deleteInvoice(inv.id)" class="p-1.5 hover:bg-slate-100 text-rose-600 rounded-md" title="Padam">
+                                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="filteredInvoices.length === 0">
+                                        <td colspan="7" class="py-8 text-center text-slate-400 text-sm">Tiada invois dijumpai.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. QUOTATIONS MODULE -->
+                <section v-if="currentTab === 'quotations'" class="space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="relative flex-1 w-full sm:w-auto">
+                            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
+                            <input v-model="searchQuotation" type="text" placeholder="Cari sebut harga..." class="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-bukku-500">
+                        </div>
+                        <button @click="openQuotationModal()" class="bg-bukku-600 hover:bg-bukku-700 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2 transition">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            <span>Bina Sebut Harga</span>
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm border-collapse">
+                                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200 uppercase">
+                                    <tr>
+                                        <th class="py-3.5 px-4">No. Sebut Harga</th>
+                                        <th class="py-3.5 px-4">Pelanggan</th>
+                                        <th class="py-3.5 px-4">Tarikh</th>
+                                        <th class="py-3.5 px-4">Jumlah (RM)</th>
+                                        <th class="py-3.5 px-4">Status</th>
+                                        <th class="py-3.5 px-4 text-right">Tindakan</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <tr v-for="qtn in filteredQuotations" :key="qtn.id" class="hover:bg-slate-50">
+                                        <td class="py-3.5 px-4 font-bold text-indigo-600">{{ qtn.number }}</td>
+                                        <td class="py-3.5 px-4 font-medium text-slate-800">{{ getCustomerName(qtn.customerId) }}</td>
+                                        <td class="py-3.5 px-4 text-slate-500">{{ qtn.date }}</td>
+                                        <td class="py-3.5 px-4 font-bold text-slate-800">RM {{ formatPrice(qtn.grandTotal) }}</td>
+                                        <td class="py-3.5 px-4">
+                                            <span :class="qtn.convertedToInvoice ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'" class="px-2.5 py-1 rounded-full text-xs font-semibold">
+                                                {{ qtn.convertedToInvoice ? 'Telah Ditukar' : 'Aktif' }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3.5 px-4 text-right">
+                                            <div class="flex items-center justify-end gap-1.5">
+                                                <button v-if="!qtn.convertedToInvoice" @click="convertToInvoice(qtn)" class="px-2 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded text-xs font-semibold flex items-center gap-1" title="Tukar ke Invois">
+                                                    <i data-lucide="arrow-right-left" class="w-3.5 h-3.5"></i>
+                                                    <span>Tukar ke Invois</span>
+                                                </button>
+                                                <button @click="viewPDF(qtn, 'QUOTATION')" class="p-1.5 hover:bg-slate-100 text-slate-600 rounded-md" title="PDF">
+                                                    <i data-lucide="printer" class="w-4 h-4"></i>
+                                                </button>
+                                                <button @click="openQuotationModal(qtn)" class="p-1.5 hover:bg-slate-100 text-amber-600 rounded-md" title="Edit">
+                                                    <i data-lucide="edit" class="w-4 h-4"></i>
+                                                </button>
+                                                <button @click="deleteQuotation(qtn.id)" class="p-1.5 hover:bg-slate-100 text-rose-600 rounded-md" title="Padam">
+                                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="filteredQuotations.length === 0">
+                                        <td colspan="6" class="py-8 text-center text-slate-400 text-sm">Tiada sebut harga dijumpai.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. INVENTORY / STOCK MODULE -->
+                <section v-if="currentTab === 'inventory'" class="space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="relative flex-1 w-full sm:w-auto">
+                            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
+                            <input v-model="searchInventory" type="text" placeholder="Cari barang mengikut nama / SKU..." class="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-bukku-500">
+                        </div>
+                        <button @click="openItemModal()" class="bg-bukku-600 hover:bg-bukku-700 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2 transition">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            <span>Tambah Produk</span>
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm border-collapse">
+                                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200 uppercase">
+                                    <tr>
+                                        <th class="py-3.5 px-4">SKU</th>
+                                        <th class="py-3.5 px-4">Nama Produk</th>
+                                        <th class="py-3.5 px-4">Harga Jualan</th>
+                                        <th class="py-3.5 px-4">Kos Barangan</th>
+                                        <th class="py-3.5 px-4">Baki Stok</th>
+                                        <th class="py-3.5 px-4">Status Stok</th>
+                                        <th class="py-3.5 px-4 text-right">Tindakan</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <tr v-for="item in filteredInventory" :key="item.id" class="hover:bg-slate-50">
+                                        <td class="py-3.5 px-4 font-mono text-xs text-slate-500">{{ item.sku }}</td>
+                                        <td class="py-3.5 px-4 font-semibold text-slate-800">{{ item.name }}</td>
+                                        <td class="py-3.5 px-4 font-medium text-emerald-600">RM {{ formatPrice(item.price) }}</td>
+                                        <td class="py-3.5 px-4 text-slate-500">RM {{ formatPrice(item.cost) }}</td>
+                                        <td class="py-3.5 px-4 font-bold" :class="item.stock <= item.reorderLevel ? 'text-rose-600' : 'text-slate-800'">
+                                            {{ item.stock }}
+                                        </td>
+                                        <td class="py-3.5 px-4">
+                                            <span v-if="item.stock === 0" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">Habis Stok</span>
+                                            <span v-else-if="item.stock <= item.reorderLevel" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">Rendah</span>
+                                            <span v-else class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Mencukupi</span>
+                                        </td>
+                                        <td class="py-3.5 px-4 text-right">
+                                            <div class="flex items-center justify-end gap-1.5">
+                                                <button @click="openItemModal(item)" class="p-1.5 hover:bg-slate-100 text-amber-600 rounded-md" title="Edit">
+                                                    <i data-lucide="edit" class="w-4 h-4"></i>
+                                                </button>
+                                                <button @click="deleteItem(item.id)" class="p-1.5 hover:bg-slate-100 text-rose-600 rounded-md" title="Padam">
+                                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="filteredInventory.length === 0">
+                                        <td colspan="7" class="py-8 text-center text-slate-400 text-sm">Tiada barangan dijumpai.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. CUSTOMER MANAGEMENT MODULE -->
+                <section v-if="currentTab === 'customers'" class="space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="relative flex-1 w-full sm:w-auto">
+                            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
+                            <input v-model="searchCustomer" type="text" placeholder="Cari pelanggan..." class="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-bukku-500">
+                        </div>
+                        <button @click="openCustomerModal()" class="bg-bukku-600 hover:bg-bukku-700 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2 transition">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            <span>Tambah Pelanggan</span>
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm border-collapse">
+                                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200 uppercase">
+                                    <tr>
+                                        <th class="py-3.5 px-4">Syarikat / Nama</th>
+                                        <th class="py-3.5 px-4">SST ID</th>
+                                        <th class="py-3.5 px-4">Telefon</th>
+                                        <th class="py-3.5 px-4">Emel</th>
+                                        <th class="py-3.5 px-4">Jumlah Invois</th>
+                                        <th class="py-3.5 px-4 text-right">Tindakan</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <tr v-for="cust in filteredCustomers" :key="cust.id" class="hover:bg-slate-50">
+                                        <td class="py-3.5 px-4">
+                                            <p class="font-bold text-slate-800">{{ cust.name }}</p>
+                                            <p class="text-xs text-slate-400 truncate max-w-xs">{{ cust.address }}</p>
+                                        </td>
+                                        <td class="py-3.5 px-4 font-mono text-xs text-slate-600">{{ cust.sstId || '-' }}</td>
+                                        <td class="py-3.5 px-4 text-slate-600">{{ cust.phone }}</td>
+                                        <td class="py-3.5 px-4 text-slate-600">{{ cust.email }}</td>
+                                        <td class="py-3.5 px-4 font-semibold text-slate-800">
+                                            RM {{ formatPrice(getCustomerTotalBilled(cust.id)) }}
+                                        </td>
+                                        <td class="py-3.5 px-4 text-right">
+                                            <div class="flex items-center justify-end gap-1.5">
+                                                <button @click="openCustomerModal(cust)" class="p-1.5 hover:bg-slate-100 text-amber-600 rounded-md" title="Edit">
+                                                    <i data-lucide="edit" class="w-4 h-4"></i>
+                                                </button>
+                                                <button @click="deleteCustomer(cust.id)" class="p-1.5 hover:bg-slate-100 text-rose-600 rounded-md" title="Padam">
+                                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="filteredCustomers.length === 0">
+                                        <td colspan="6" class="py-8 text-center text-slate-400 text-sm">Tiada pelanggan dijumpai.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6. REPORTS MODULE -->
+                <section v-if="currentTab === 'reports'" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                            <p class="text-xs font-semibold text-slate-400 uppercase">Nilai Keseluruhan Inventori</p>
+                            <h3 class="text-2xl font-bold text-slate-800 mt-1">RM {{ formatPrice(inventoryValuation) }}</h3>
+                            <p class="text-xs text-slate-500 mt-2">Berdasarkan kos harga barang yang sedia ada.</p>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                            <p class="text-xs font-semibold text-slate-400 uppercase">Jumlah Terimaan / Paid Invoices</p>
+                            <h3 class="text-2xl font-bold text-emerald-600 mt-1">RM {{ formatPrice(stats.totalPaid) }}</h3>
+                            <p class="text-xs text-emerald-600 mt-2">Jumlah kutipan rasmi.</p>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                            <p class="text-xs font-semibold text-slate-400 uppercase">Jumlah Piutang / Pending</p>
+                            <h3 class="text-2xl font-bold text-amber-600 mt-1">RM {{ formatPrice(stats.totalPending) }}</h3>
+                            <p class="text-xs text-amber-600 mt-2">Perlu dipungut dari pelanggan.</p>
+                        </div>
+                    </div>
+
+                    <!-- Customer Receivables Report -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                        <h3 class="font-bold text-slate-800 text-base mb-4">Laporan Ringkasan Piutang Pelanggan</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm border-collapse">
+                                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200 uppercase">
+                                    <tr>
+                                        <th class="py-3 px-4">Pelanggan</th>
+                                        <th class="py-3 px-4">Jumlah Invois (Paid)</th>
+                                        <th class="py-3 px-4">Tunggakan (Pending)</th>
+                                        <th class="py-3 px-4">Jumlah Billed</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <tr v-for="cust in customers" :key="cust.id" class="hover:bg-slate-50">
+                                        <td class="py-3 px-4 font-semibold text-slate-800">{{ cust.name }}</td>
+                                        <td class="py-3 px-4 text-emerald-600 font-medium">RM {{ formatPrice(getCustomerPaidAmount(cust.id)) }}</td>
+                                        <td class="py-3 px-4 text-amber-600 font-medium">RM {{ formatPrice(getCustomerPendingAmount(cust.id)) }}</td>
+                                        <td class="py-3 px-4 font-bold text-slate-800">RM {{ formatPrice(getCustomerTotalBilled(cust.id)) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+
+        <!-- MODAL 1: ADD / EDIT INVOICE OR QUOTATION -->
+        <div v-if="showDocModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                    <h3 class="font-bold text-lg text-slate-800">
+                        {{ docForm.id ? 'Edit' : 'Tambah' }} {{ docForm.docType === 'INVOICE' ? 'Invois' : 'Sebut Harga' }}
+                    </h3>
+                    <button @click="showDocModal = false" class="text-slate-400 hover:text-slate-600">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                
+                <div class="p-6 overflow-y-auto space-y-6 flex-1">
+                    <!-- Basic Info -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Nombor Dokumen</label>
+                            <input v-model="docForm.number" type="text" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Pelanggan *</label>
+                            <select v-model="docForm.customerId" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                                <option value="" disabled>Pilih Pelanggan</option>
+                                <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
+                            <select v-model="docForm.status" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                                <option value="Pending">Pending</option>
+                                <option value="Paid">Paid</option>
+                                <option value="Draft">Draft</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Tarikh Dokumen</label>
+                            <input v-model="docForm.date" type="date" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Tarikh Luput / Tamat</label>
+                            <input v-model="docForm.dueDate" type="date" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Kadar SST (%)</label>
+                            <input v-model.number="docForm.taxRate" type="number" min="0" step="1" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                        </div>
+                    </div>
+
+                    <!-- Line Items Table -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-bold text-sm text-slate-700">Senarai Barangan / Perkhidmatan</h4>
+                            <button @click="addDocItem" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-medium flex items-center gap-1">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                <span>Tambah Baris</span>
+                            </button>
+                        </div>
+
+                        <div class="border border-slate-200 rounded-lg overflow-hidden">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200">
+                                    <tr>
+                                        <th class="p-3">Item / Penerangan</th>
+                                        <th class="p-3 w-24">Kuantiti</th>
+                                        <th class="p-3 w-32">Harga Unit (RM)</th>
+                                        <th class="p-3 w-32">Jumlah (RM)</th>
+                                        <th class="p-3 w-12 text-center"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <tr v-for="(item, idx) in docForm.items" :key="idx">
+                                        <td class="p-2">
+                                            <select @change="onDocItemSelect(idx, $event)" v-model="item.itemId" class="w-full px-2 py-1 border border-slate-200 rounded text-xs mb-1">
+                                                <option value="">-- Pilih Produk Inventori --</option>
+                                                <option v-for="inv in inventory" :key="inv.id" :value="inv.id">{{ inv.name }} (Stok: {{ inv.stock }})</option>
+                                            </select>
+                                            <input v-model="item.description" type="text" placeholder="Penerangan item..." class="w-full px-2 py-1 border border-slate-200 rounded text-xs">
+                                        </td>
+                                        <td class="p-2">
+                                            <input v-model.number="item.quantity" type="number" min="1" class="w-full px-2 py-1.5 border border-slate-200 rounded text-xs text-center">
+                                        </td>
+                                        <td class="p-2">
+                                            <input v-model.number="item.unitPrice" type="number" step="0.01" class="w-full px-2 py-1.5 border border-slate-200 rounded text-xs text-right">
+                                        </td>
+                                        <td class="p-2 font-bold text-right text-xs">
+                                            RM {{ formatPrice(item.quantity * item.unitPrice) }}
+                                        </td>
+                                        <td class="p-2 text-center">
+                                            <button @click="removeDocItem(idx)" class="text-rose-500 hover:text-rose-700">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Totals Summary -->
+                    <div class="flex flex-col items-end space-y-1.5 pt-2 border-t border-slate-100 text-sm">
+                        <div class="flex justify-between w-64 text-slate-600">
+                            <span>Subtotal:</span>
+                            <span class="font-semibold">RM {{ formatPrice(calculatedDocSubtotal) }}</span>
+                        </div>
+                        <div class="flex justify-between w-64 text-slate-600">
+                            <span>Cukai SST ({{ docForm.taxRate }}%):</span>
+                            <span class="font-semibold">RM {{ formatPrice(calculatedDocTax) }}</span>
+                        </div>
+                        <div class="flex justify-between w-64 text-slate-800 font-bold text-base pt-2 border-t border-slate-200">
+                            <span>Jumlah Keseluruhan:</span>
+                            <span class="text-bukku-600">RM {{ formatPrice(calculatedDocGrandTotal) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+                    <button @click="showDocModal = false" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-100 font-medium">
+                        Batal
+                    </button>
+                    <button @click="saveDocument" class="px-4 py-2 bg-bukku-600 hover:bg-bukku-700 text-white rounded-lg text-sm font-medium transition">
+                        Simpan Dokumen
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 2: ADD / EDIT INVENTORY ITEM -->
+        <div v-if="showItemModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                    <h3 class="font-bold text-slate-800">{{ itemForm.id ? 'Edit' : 'Tambah' }} Produk</h3>
+                    <button @click="showItemModal = false" class="text-slate-400 hover:text-slate-600">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Kod SKU</label>
+                        <input v-model="itemForm.sku" type="text" placeholder="e.g. PRD-001" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Produk / Barangan *</label>
+                        <input v-model="itemForm.name" type="text" placeholder="e.g. Khidmat Konsultasi" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Harga Jualan (RM)</label>
+                            <input v-model.number="itemForm.price" type="number" step="0.01" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Kos Belian (RM)</label>
+                            <input v-model.number="itemForm.cost" type="number" step="0.01" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Kuantiti Stok</label>
+                            <input v-model.number="itemForm.stock" type="number" min="0" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Paras Pesanan Semula</label>
+                            <input v-model.number="itemForm.reorderLevel" type="number" min="0" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                        </div>
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+                    <button @click="showItemModal = false" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-100 font-medium">Batal</button>
+                    <button @click="saveItem" class="px-4 py-2 bg-bukku-600 hover:bg-bukku-700 text-white rounded-lg text-sm font-medium">Simpan Produk</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 3: ADD / EDIT CUSTOMER -->
+        <div v-if="showCustomerModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                    <h3 class="font-bold text-slate-800">{{ customerForm.id ? 'Edit' : 'Tambah' }} Pelanggan</h3>
+                    <button @click="showCustomerModal = false" class="text-slate-400 hover:text-slate-600">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Syarikat / Pelanggan *</label>
+                        <input v-model="customerForm.name" type="text" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Nombor SST / Pendaftaran</label>
+                        <input v-model="customerForm.sstId" type="text" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Emel</label>
+                            <input v-model="customerForm.email" type="email" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">No. Telefon</label>
+                            <input v-model="customerForm.phone" type="text" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Alamat Penuh</label>
+                        <textarea v-model="customerForm.address" rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-bukku-500"></textarea>
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+                    <button @click="showCustomerModal = false" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-100 font-medium">Batal</button>
+                    <button @click="saveCustomer" class="px-4 py-2 bg-bukku-600 hover:bg-bukku-700 text-white rounded-lg text-sm font-medium">Simpan Pelanggan</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL 4: PRINT / VIEW PDF PREVIEW -->
+        <div v-if="showPdfModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
+                <div class="px-6 py-3 border-b border-slate-200 flex justify-between items-center bg-slate-100 no-print">
+                    <span class="font-bold text-sm text-slate-700">Pratonton Dokumen PDF</span>
+                    <div class="flex items-center gap-2">
+                        <button @click="downloadPDF" class="bg-bukku-600 hover:bg-bukku-700 text-white text-xs px-3 py-1.5 rounded flex items-center gap-1 font-semibold">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                            <span>Muat Turun PDF</span>
+                        </button>
+                        <button @click="showPdfModal = false" class="text-slate-400 hover:text-slate-600 p-1">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Printable Document Area -->
+                <div id="printable-area" class="p-8 bg-white overflow-y-auto font-sans text-slate-800 text-sm leading-relaxed">
+                    <!-- Company Header -->
+                    <div class="flex justify-between items-start border-b-2 border-slate-800 pb-5 mb-6">
+                        <div>
+                            <h1 class="text-2xl font-bold tracking-tight text-slate-900">MFZ ENTERPRISE</h1>
+                            <p class="text-xs text-slate-500 mt-0.5">No. Pendaftaran: 202401099882 (SSM)</p>
+                            <p class="text-xs text-slate-500">No. 45-A, Jalan Ampang Utama 1/1, 50450 Kuala Lumpur</p>
+                            <p class="text-xs text-slate-500">Tel: +60 3-4251 8899 | Emel: billing@mfz.my</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-2xl font-black uppercase text-bukku-700">
+                                {{ pdfData.docType === 'INVOICE' ? 'INVOIS' : 'SEBUT HARGA' }}
+                            </span>
+                            <p class="text-base font-bold text-slate-800 mt-1">#{{ pdfData.number }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Client & Doc Meta -->
+                    <div class="grid grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Kepada / Bil Kepada:</p>
+                            <p class="font-bold text-slate-800 text-base">{{ pdfCustomer.name }}</p>
+                            <p class="text-xs text-slate-600 whitespace-pre-line mt-1">{{ pdfCustomer.address }}</p>
+                            <p v-if="pdfCustomer.sstId" class="text-xs text-slate-500 mt-1">No SST: {{ pdfCustomer.sstId }}</p>
+                            <p class="text-xs text-slate-500">Tel: {{ pdfCustomer.phone }}</p>
+                        </div>
+                        <div class="text-right space-y-1">
+                            <div>
+                                <span class="text-xs text-slate-500">Tarikh: </span>
+                                <span class="font-semibold text-slate-800">{{ pdfData.date }}</span>
+                            </div>
+                            <div>
+                                <span class="text-xs text-slate-500">Tarikh Luput: </span>
+                                <span class="font-semibold text-slate-800">{{ pdfData.dueDate }}</span>
+                            </div>
+                            <div>
+                                <span class="text-xs text-slate-500">Status Pembayaran: </span>
+                                <span class="font-bold text-xs uppercase px-2 py-0.5 rounded" :class="getStatusBadgeClass(pdfData.status)">
+                                    {{ pdfData.status }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Items Table -->
+                    <table class="w-full text-left mb-6 border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 text-xs font-bold uppercase border-y border-slate-300">
+                                <th class="py-2.5 px-3">Bil</th>
+                                <th class="py-2.5 px-3">Penerangan Barangan / Perkhidmatan</th>
+                                <th class="py-2.5 px-3 text-center">Kuantiti</th>
+                                <th class="py-2.5 px-3 text-right">Harga Unit (RM)</th>
+                                <th class="py-2.5 px-3 text-right">Jumlah (RM)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 text-xs">
+                            <tr v-for="(item, idx) in pdfData.items" :key="idx">
+                                <td class="py-3 px-3 font-semibold text-slate-500">{{ idx + 1 }}</td>
+                                <td class="py-3 px-3">
+                                    <p class="font-bold text-slate-800">{{ getItemName(item.itemId) }}</p>
+                                    <p class="text-slate-500 text-[11px]">{{ item.description }}</p>
+                                </td>
+                                <td class="py-3 px-3 text-center">{{ item.quantity }}</td>
+                                <td class="py-3 px-3 text-right">{{ formatPrice(item.unitPrice) }}</td>
+                                <td class="py-3 px-3 text-right font-bold">{{ formatPrice(item.quantity * item.unitPrice) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Summary & Terms -->
+                    <div class="flex justify-between items-start pt-2">
+                        <div class="max-w-xs text-xs text-slate-500 space-y-1">
+                            <p class="font-bold text-slate-700">Terma & Syarat:</p>
+                            <p>1. Bayaran hendaklah dijelaskan dalam tempoh 14 hari.</p>
+                            <p>2. Sila kemukakan resit pembayaran kepada akaun syarikat.</p>
+                            <p>3. Bayaran secara cek / pindahan bank ke Maybank: <b>5140 1234 9981</b> (MFZ Enterprise).</p>
+                        </div>
+                        <div class="w-64 space-y-1.5 text-xs">
+                            <div class="flex justify-between text-slate-600">
+                                <span>Jumlah Kecil (Subtotal):</span>
+                                <span class="font-semibold">RM {{ formatPrice(pdfData.subtotal) }}</span>
+                            </div>
+                            <div class="flex justify-between text-slate-600">
+                                <span>Cukai SST ({{ pdfData.taxRate }}%):</span>
+                                <span class="font-semibold">RM {{ formatPrice(pdfData.taxTotal) }}</span>
+                            </div>
+                            <div class="flex justify-between font-bold text-sm text-slate-900 border-t-2 border-slate-800 pt-2">
+                                <span>JUMLAH BESAR:</span>
+                                <span class="text-bukku-700">RM {{ formatPrice(pdfData.grandTotal) }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer Signatures -->
+                    <div class="mt-16 flex justify-between items-end text-xs">
+                        <div class="text-center w-40">
+                            <div class="border-b border-slate-400 h-10 mb-1"></div>
+                            <p class="font-semibold text-slate-700">Tandatangan Pelanggan</p>
+                        </div>
+                        <div class="text-center w-40">
+                            <div class="border-b border-slate-400 h-10 mb-1 flex items-end justify-center font-serif text-slate-400 italic">MFZ Auto</div>
+                            <p class="font-semibold text-slate-700">Pengurusan MFZ</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    currentTab: 'dashboard',
+                    toasts: [],
+                    
+                    // Modals
+                    showDocModal: false,
+                    showItemModal: false,
+                    showCustomerModal: false,
+                    showPdfModal: false,
+
+                    // Filters
+                    searchInvoice: '',
+                    invoiceFilterStatus: 'ALL',
+                    searchQuotation: '',
+                    searchInventory: '',
+                    searchCustomer: '',
+
+                    // PDF View State
+                    pdfData: {},
+                    pdfCustomer: {},
+
+                    // Forms
+                    docForm: {
+                        id: null,
+                        docType: 'INVOICE',
+                        number: '',
+                        customerId: '',
+                        status: 'Pending',
+                        date: new Date().toISOString().slice(0, 10),
+                        dueDate: new Date(Date.now() + 14*24*60*60*1000).toISOString().slice(0, 10),
+                        taxRate: 6,
+                        items: []
+                    },
+
+                    itemForm: {
+                        id: null,
+                        sku: '',
+                        name: '',
+                        price: 0,
+                        cost: 0,
+                        stock: 0,
+                        reorderLevel: 5
+                    },
+
+                    customerForm: {
+                        id: null,
+                        name: '',
+                        sstId: '',
+                        email: '',
+                        phone: '',
+                        address: ''
+                    },
+
+                    // Collections
+                    customers: [],
+                    inventory: [],
+                    invoices: [],
+                    quotations: []
+                }
+            },
+
+            computed: {
+                // Calculated Document Totals
+                calculatedDocSubtotal() {
+                    return this.docForm.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice || 0), 0);
+                },
+                calculatedDocTax() {
+                    return (this.calculatedDocSubtotal * (this.docForm.taxRate || 0)) / 100;
+                },
+                calculatedDocGrandTotal() {
+                    return this.calculatedDocSubtotal + this.calculatedDocTax;
+                },
+
+                // Filters
+                filteredInvoices() {
+                    return this.invoices.filter(inv => {
+                        const custName = this.getCustomerName(inv.customerId).toLowerCase();
+                        const matchQuery = inv.number.toLowerCase().includes(this.searchInvoice.toLowerCase()) || custName.includes(this.searchInvoice.toLowerCase());
+                        const matchStatus = this.invoiceFilterStatus === 'ALL' || inv.status === this.invoiceFilterStatus;
+                        return matchQuery && matchStatus;
+                    });
+                },
+
+                filteredQuotations() {
+                    return this.quotations.filter(qtn => {
+                        const custName = this.getCustomerName(qtn.customerId).toLowerCase();
+                        return qtn.number.toLowerCase().includes(this.searchQuotation.toLowerCase()) || custName.includes(this.searchQuotation.toLowerCase());
+                    });
+                },
+
+                filteredInventory() {
+                    return this.inventory.filter(item => {
+                        return item.name.toLowerCase().includes(this.searchInventory.toLowerCase()) || item.sku.toLowerCase().includes(this.searchInventory.toLowerCase());
+                    });
+                },
+
+                filteredCustomers() {
+                    return this.customers.filter(c => {
+                        return c.name.toLowerCase().includes(this.searchCustomer.toLowerCase()) || c.email.toLowerCase().includes(this.searchCustomer.toLowerCase());
+                    });
+                },
+
+                // Stats
+                stats() {
+                    const paidInvoices = this.invoices.filter(i => i.status === 'Paid');
+                    const pendingInvoices = this.invoices.filter(i => i.status === 'Pending');
+                    
+                    return {
+                        totalPaid: paidInvoices.reduce((sum, i) => sum + i.grandTotal, 0),
+                        paidCount: paidInvoices.length,
+                        totalPending: pendingInvoices.reduce((sum, i) => sum + i.grandTotal, 0),
+                        pendingCount: pendingInvoices.length,
+                        lowStockCount: this.inventory.filter(i => i.stock <= i.reorderLevel).length
+                    };
+                },
+
+                recentInvoices() {
+                    return [...this.invoices].reverse().slice(0, 5);
+                },
+
+                lowStockItems() {
+                    return this.inventory.filter(i => i.stock <= i.reorderLevel);
+                },
+
+                inventoryValuation() {
+                    return this.inventory.reduce((sum, item) => sum + (item.cost * item.stock), 0);
+                }
+            },
+
+            mounted() {
+                this.loadInitialData();
+                this.$nextTick(() => {
+                    lucide.createIcons();
+                });
+            },
+
+            updated() {
+                this.$nextTick(() => {
+                    lucide.createIcons();
+                });
+            },
+
+            methods: {
+                showToast(message, type = 'success') {
+                    const id = Date.now();
+                    this.toasts.push({ id, message, type });
+                    setTimeout(() => {
+                        this.toasts = this.toasts.filter(t => t.id !== id);
+                    }, 3500);
+                },
+
+                formatPrice(value) {
+                    return Number(value || 0).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                },
+
+                getTabTitle(tab) {
+                    const titles = {
+                        dashboard: 'Papan Pemuka',
+                        quotations: 'Sebut Harga (Quotations)',
+                        invoices: 'Pengurusan Invois',
+                        inventory: 'Inventori & Kawalan Stok',
+                        customers: 'Pangkalan Data Pelanggan',
+                        reports: 'Laporan & Analisis Data'
+                    };
+                    return titles[tab] || 'Sistem Invois';
+                },
+
+                getStatusBadgeClass(status) {
+                    switch (status) {
+                        case 'Paid': return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+                        case 'Pending': return 'bg-amber-100 text-amber-700 border border-amber-200';
+                        case 'Draft': return 'bg-slate-100 text-slate-700 border border-slate-200';
+                        default: return 'bg-slate-100 text-slate-700';
+                    }
+                },
+
+                getCustomerName(id) {
+                    const found = this.customers.find(c => c.id === id);
+                    return found ? found.name : 'Pelanggan Tidak Diketahui';
+                },
+
+                getItemName(id) {
+                    const found = this.inventory.find(i => i.id === id);
+                    return found ? found.name : 'Barangan Khas';
+                },
+
+                // Storage Handlers
+                saveData() {
+                    localStorage.setItem('mfz_customers', JSON.stringify(this.customers));
+                    localStorage.setItem('mfz_inventory', JSON.stringify(this.inventory));
+                    localStorage.setItem('mfz_invoices', JSON.stringify(this.invoices));
+                    localStorage.setItem('mfz_quotations', JSON.stringify(this.quotations));
+                },
+
+                loadInitialData() {
+                    const c = localStorage.getItem('mfz_customers');
+                    const i = localStorage.getItem('mfz_inventory');
+                    const inv = localStorage.getItem('mfz_invoices');
+                    const qtn = localStorage.getItem('mfz_quotations');
+
+                    if (c) this.customers = JSON.parse(c);
+                    else {
+                        this.customers = [
+                            { id: 'cust-1', name: 'Syarikat Megah Bina Sdn Bhd', sstId: 'W10-1808-32000049', email: 'accounts@megahbina.my', phone: '03-8922 1100', address: 'Lot 12, Wisma Megah, Cyberjaya, Selangor' },
+                            { id: 'cust-2', name: 'Ahmad Enterprise', sstId: 'W10-1901-22910291', email: 'ahmad@enterprise.com', phone: '012-345 6789', address: 'No. 88, Jalan Utama, Bandar Baru Bangi' }
+                        ];
+                    }
+
+                    if (i) this.inventory = JSON.parse(i);
+                    else {
+                        this.inventory = [
+                            { id: 'item-1', sku: 'PRD-001', name: 'Penyelenggaraan Sistem Komputer', price: 250, cost: 80, stock: 20, reorderLevel: 5 },
+                            { id: 'item-2', sku: 'PRD-002', name: 'Pelesenan Perisian Perakaunan (Tahunan)', price: 1200, cost: 500, stock: 4, reorderLevel: 5 },
+                            { id: 'item-3', sku: 'PRD-003', name: 'Tetapan Server & Cloud Backup', price: 850, cost: 300, stock: 15, reorderLevel: 3 }
+                        ];
+                    }
+
+                    if (inv) this.invoices = JSON.parse(inv);
+                    else {
+                        this.invoices = [
+                            {
+                                id: 'inv-1',
+                                number: 'INV-2026-001',
+                                customerId: 'cust-1',
+                                status: 'Paid',
+                                date: '2026-02-10',
+                                dueDate: '2026-02-24',
+                                taxRate: 6,
+                                subtotal: 1450,
+                                taxTotal: 87,
+                                grandTotal: 1537,
+                                items: [
+                                    { itemId: 'item-1', description: 'Servis bulanan', quantity: 1, unitPrice: 250 },
+                                    { itemId: 'item-2', description: 'Lesen perisian', quantity: 1, unitPrice: 1200 }
+                                ]
+                            }
+                        ];
+                    }
+
+                    if (qtn) this.quotations = JSON.parse(qtn);
+                    else {
+                        this.quotations = [
+                            {
+                                id: 'qtn-1',
+                                number: 'QTN-2026-001',
+                                customerId: 'cust-2',
+                                status: 'Active',
+                                date: '2026-02-12',
+                                dueDate: '2026-02-26',
+                                taxRate: 6,
+                                subtotal: 850,
+                                taxTotal: 51,
+                                grandTotal: 901,
+                                convertedToInvoice: false,
+                                items: [
+                                    { itemId: 'item-3', description: 'Pemasangan awal', quantity: 1, unitPrice: 850 }
+                                ]
+                            }
+                        ];
+                    }
+
+                    this.saveData();
+                },
+
+                // Document Operations (Invoice / Quotation)
+                openQuickInvoiceModal() {
+                    this.currentTab = 'invoices';
+                    this.openInvoiceModal();
+                },
+
+                generateDocNumber(type) {
+                    const prefix = type === 'INVOICE' ? 'INV-2026-' : 'QTN-2026-';
+                    const list = type === 'INVOICE' ? this.invoices : this.quotations;
+                    const nextNum = String(list.length + 1).padStart(3, '0');
+                    return prefix + nextNum;
+                },
+
+                openInvoiceModal(existingInv = null) {
+                    if (existingInv) {
+                        this.docForm = JSON.parse(JSON.stringify(existingInv));
+                        this.docForm.docType = 'INVOICE';
+                    } else {
+                        this.docForm = {
+                            id: null,
+                            docType: 'INVOICE',
+                            number: this.generateDocNumber('INVOICE'),
+                            customerId: this.customers[0]?.id || '',
+                            status: 'Pending',
+                            date: new Date().toISOString().slice(0, 10),
+                            dueDate: new Date(Date.now() + 14*24*60*60*1000).toISOString().slice(0, 10),
+                            taxRate: 6,
+                            items: [{ itemId: '', description: '', quantity: 1, unitPrice: 0 }]
+                        };
+                    }
+                    this.showDocModal = true;
+                },
+
+                openQuotationModal(existingQtn = null) {
+                    if (existingQtn) {
+                        this.docForm = JSON.parse(JSON.stringify(existingQtn));
+                        this.docForm.docType = 'QUOTATION';
+                    } else {
+                        this.docForm = {
+                            id: null,
+                            docType: 'QUOTATION',
+                            number: this.generateDocNumber('QUOTATION'),
+                            customerId: this.customers[0]?.id || '',
+                            status: 'Active',
+                            date: new Date().toISOString().slice(0, 10),
+                            dueDate: new Date(Date.now() + 14*24*60*60*1000).toISOString().slice(0, 10),
+                            taxRate: 6,
+                            items: [{ itemId: '', description: '', quantity: 1, unitPrice: 0 }]
+                        };
+                    }
+                    this.showDocModal = true;
+                },
+
+                addDocItem() {
+                    this.docForm.items.push({ itemId: '', description: '', quantity: 1, unitPrice: 0 });
+                },
+
+                removeDocItem(index) {
+                    this.docForm.items.splice(index, 1);
+                },
+
+                onDocItemSelect(index, event) {
+                    const selectedId = event.target.value;
+                    const foundItem = this.inventory.find(i => i.id === selectedId);
+                    if (foundItem) {
+                        this.docForm.items[index].description = foundItem.name;
+                        this.docForm.items[index].unitPrice = foundItem.price;
+                    }
+                },
+
+                saveDocument() {
+                    if (!this.docForm.customerId) {
+                        this.showToast('Sila pilih pelanggan terlebih dahulu!', 'error');
+                        return;
+                    }
+                    if (this.docForm.items.length === 0) {
+                        this.showToast('Sila tambah sekurang-kurangnya satu barangan!', 'error');
+                        return;
+                    }
+
+                    const subtotal = this.calculatedDocSubtotal;
+                    const taxTotal = this.calculatedDocTax;
+                    const grandTotal = this.calculatedDocGrandTotal;
+
+                    const docPayload = {
+                        ...this.docForm,
+                        subtotal,
+                        taxTotal,
+                        grandTotal
+                    };
+
+                    const targetList = this.docForm.docType === 'INVOICE' ? this.invoices : this.quotations;
+
+                    if (docPayload.id) {
+                        const idx = targetList.findIndex(d => d.id === docPayload.id);
+                        if (idx !== -1) targetList[idx] = docPayload;
+                    } else {
+                        docPayload.id = (this.docForm.docType === 'INVOICE' ? 'inv-' : 'qtn-') + Date.now();
+                        targetList.push(docPayload);
+
+                        // If paid invoice, auto-deduct inventory stock
+                        if (this.docForm.docType === 'INVOICE' && docPayload.status === 'Paid') {
+                            this.deductInventoryStock(docPayload.items);
+                        }
+                    }
+
+                    this.saveData();
+                    this.showDocModal = false;
+                    this.showToast(`${this.docForm.docType === 'INVOICE' ? 'Invois' : 'Sebut Harga'} berjaya disimpan!`);
+                },
+
+                deductInventoryStock(items) {
+                    items.forEach(item => {
+                        if (item.itemId) {
+                            const invItem = this.inventory.find(i => i.id === item.itemId);
+                            if (invItem) {
+                                invItem.stock = Math.max(0, invItem.stock - item.quantity);
+                            }
+                        }
+                    });
+                },
+
+                deleteInvoice(id) {
+                    if (confirm('Adakah anda pasti untuk memadam invois ini?')) {
+                        this.invoices = this.invoices.filter(i => i.id !== id);
+                        this.saveData();
+                        this.showToast('Invois berjaya dipadam.');
+                    }
+                },
+
+                deleteQuotation(id) {
+                    if (confirm('Adakah anda pasti untuk memadam sebut harga ini?')) {
+                        this.quotations = this.quotations.filter(q => q.id !== id);
+                        this.saveData();
+                        this.showToast('Sebut harga berjaya dipadam.');
+                    }
+                },
+
+                convertToInvoice(quotation) {
+                    const newInvoice = {
+                        id: 'inv-' + Date.now(),
+                        number: this.generateDocNumber('INVOICE'),
+                        customerId: quotation.customerId,
+                        status: 'Pending',
+                        date: new Date().toISOString().slice(0, 10),
+                        dueDate: new Date(Date.now() + 14*24*60*60*1000).toISOString().slice(0, 10),
+                        taxRate: quotation.taxRate,
+                        subtotal: quotation.subtotal,
+                        taxTotal: quotation.taxTotal,
+                        grandTotal: quotation.grandTotal,
+                        items: JSON.parse(JSON.stringify(quotation.items))
+                    };
+
+                    this.invoices.push(newInvoice);
+                    quotation.convertedToInvoice = true;
+                    this.saveData();
+                    this.showToast(`Sebut harga ${quotation.number} berjaya ditukar ke Invois ${newInvoice.number}!`);
+                },
+
+                // Inventory CRUD
+                openItemModal(item = null) {
+                    if (item) {
+                        this.itemForm = JSON.parse(JSON.stringify(item));
+                    } else {
+                        this.itemForm = { id: null, sku: 'PRD-' + String(this.inventory.length + 1).padStart(3, '0'), name: '', price: 0, cost: 0, stock: 0, reorderLevel: 5 };
+                    }
+                    this.showItemModal = true;
+                },
+
+                saveItem() {
+                    if (!this.itemForm.name) {
+                        this.showToast('Sila isikan nama produk!', 'error');
+                        return;
+                    }
+
+                    if (this.itemForm.id) {
+                        const idx = this.inventory.findIndex(i => i.id === this.itemForm.id);
+                        if (idx !== -1) this.inventory[idx] = { ...this.itemForm };
+                    } else {
+                        this.itemForm.id = 'item-' + Date.now();
+                        this.inventory.push({ ...this.itemForm });
+                    }
+
+                    this.saveData();
+                    this.showItemModal = false;
+                    this.showToast('Maklumat produk berjaya disimpan!');
+                },
+
+                deleteItem(id) {
+                    if (confirm('Adakah anda pasti untuk memadam produk ini dari inventori?')) {
+                        this.inventory = this.inventory.filter(i => i.id !== id);
+                        this.saveData();
+                        this.showToast('Produk dipadam dari inventori.');
+                    }
+                },
+
+                // Customer CRUD
+                openCustomerModal(customer = null) {
+                    if (customer) {
+                        this.customerForm = JSON.parse(JSON.stringify(customer));
+                    } else {
+                        this.customerForm = { id: null, name: '', sstId: '', email: '', phone: '', address: '' };
+                    }
+                    this.showCustomerModal = true;
+                },
+
+                saveCustomer() {
+                    if (!this.customerForm.name) {
+                        this.showToast('Sila isikan nama pelanggan!', 'error');
+                        return;
+                    }
+
+                    if (this.customerForm.id) {
+                        const idx = this.customers.findIndex(c => c.id === this.customerForm.id);
+                        if (idx !== -1) this.customers[idx] = { ...this.customerForm };
+                    } else {
+                        this.customerForm.id = 'cust-' + Date.now();
+                        this.customers.push({ ...this.customerForm });
+                    }
+
+                    this.saveData();
+                    this.showCustomerModal = false;
+                    this.showToast('Data pelanggan berjaya disimpan!');
+                },
+
+                deleteCustomer(id) {
+                    if (confirm('Padam pelanggan ini? Ini tidak merosakkan rekod invois terdahulu.')) {
+                        this.customers = this.customers.filter(c => c.id !== id);
+                        this.saveData();
+                        this.showToast('Pelanggan berjaya dipadam.');
+                    }
+                },
+
+                // Customer Report Helpers
+                getCustomerTotalBilled(customerId) {
+                    return this.invoices.filter(i => i.customerId === customerId).reduce((sum, i) => sum + i.grandTotal, 0);
+                },
+
+                getCustomerPaidAmount(customerId) {
+                    return this.invoices.filter(i => i.customerId === customerId && i.status === 'Paid').reduce((sum, i) => sum + i.grandTotal, 0);
+                },
+
+                getCustomerPendingAmount(customerId) {
+                    return this.invoices.filter(i => i.customerId === customerId && i.status === 'Pending').reduce((sum, i) => sum + i.grandTotal, 0);
+                },
+
+                // PDF View & Export
+                viewPDF(doc, type) {
+                    this.pdfData = { ...doc, docType: type };
+                    this.pdfCustomer = this.customers.find(c => c.id === doc.customerId) || { name: 'N/A', address: 'N/A', phone: 'N/A' };
+                    this.showPdfModal = true;
+                },
+
+                downloadPDF() {
+                    const element = document.getElementById('printable-area');
+                    const opt = {
+                        margin:       0.4,
+                        filename:     `${this.pdfData.number}.pdf`,
+                        image:        { type: 'jpeg', quality: 0.98 },
+                        html2canvas:  { scale: 2 },
+                        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+                    };
+                    html2pdf().set(opt).from(element).save();
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
